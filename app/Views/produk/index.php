@@ -1,6 +1,20 @@
 <?= $this->extend('layout') ?>
 <?= $this->section('content') ?> 
 <!-- Table with stripped rows -->
+<?php if (session()->getFlashData('success')) : ?>
+    <div class="alert alert-info alert-dismissible fade show" role="alert">
+        <?= session()->getFlashData('success') ?>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+<?php endif; ?>
+
+<?php if (session()->getFlashData('failed')) : ?>
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <?= session()->getFlashData('failed') ?>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+<?php endif; ?>
+
 <button type="button" class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#addModal">
     Tambah Data
 </button>
@@ -29,7 +43,12 @@
                     <?php endif; ?>
                 </td>
                 <td>
-                    aksi
+                    <button type="button" class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#editModal-<?= $produk['id'] ?>">
+                        Ubah
+                    </button>
+                    <a href="<?= site_url('produk/delete/' . $produk['id']) ?>" class="btn btn-danger btn-sm" onclick="return confirm('Yakin hapus data ini ?')">
+                        Hapus
+                    </a>
                 </td>
             </tr>
         <?php endforeach ?>
@@ -38,4 +57,5 @@
 <!-- End Table with stripped rows --> 
 
 <?= $this->include('modal_add') ?>
+<?= $this->include('produk/modal_edit') ?>
 <?= $this->endSection() ?>
