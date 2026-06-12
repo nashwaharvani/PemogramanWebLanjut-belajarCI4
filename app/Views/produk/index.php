@@ -18,7 +18,9 @@
 <button type="button" class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#addModal">
     Tambah Data
 </button>
-
+<a class="btn btn-success" target="_blank" href="<?= base_url()?>produk/download">
+    Download Data
+</a>
 <table class="table datatable">
     <thead>
         <tr>
