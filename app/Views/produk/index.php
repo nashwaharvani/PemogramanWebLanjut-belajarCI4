@@ -1,6 +1,10 @@
 <?= $this->extend('layout') ?>
 <?= $this->section('content') ?> 
 <!-- Table with stripped rows -->
+<button type="button" class="btn btn-primary mb-3" data-bs-toggle="modal" data-bs-target="#addModal">
+    Tambah Data
+</button>
+
 <table class="table datatable">
     <thead>
         <tr>
@@ -32,4 +36,6 @@
     </tbody>
 </table>
 <!-- End Table with stripped rows --> 
+
+<?= $this->include('modal_add') ?>
 <?= $this->endSection() ?>
