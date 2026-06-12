@@ -14,6 +14,7 @@ $routes->get('logout', 'AuthController::logout');
     
 $routes->get('produk', 'ProdukController::index', ['filter' => 'auth']);
 $routes->get('keranjang', 'TransaksiController::index', ['filter' => 'auth']);
+$routes->get('checkout', 'TransaksiController::checkout', ['filter' => 'auth']);
 $routes->get('profil', 'ProfilController::index', ['filter' => 'auth']);
 
 $routes->group('produk', ['filter' => 'auth'], function ($routes) { 
@@ -31,3 +32,12 @@ $routes->group('keranjang', ['filter' => 'auth'], function ($routes) {
     $routes->get('delete/(:any)', 'TransaksiController::cart_delete/$1');
     $routes->get('clear', 'TransaksiController::cart_clear');
 });
+
+$routes->group('checkout', ['filter' => 'auth'], function ($routes) {
+    $routes->get('', 'TransaksiController::checkout');
+    $routes->post('', 'TransaksiController::checkout_process');
+    $routes->get('destination', 'TransaksiController::search_destination');
+    $routes->post('cost', 'TransaksiController::shipping_cost');
+});
+
+$routes->get('checkout', 'TransaksiController::checkout', ['filter' => 'auth']);
