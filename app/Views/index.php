@@ -48,7 +48,12 @@
                     <?php endif; ?>
                 </td>
                 <td>
-                    aksi
+                    <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#editModal-<?= $produk['id'] ?>">
+                        Ubah
+                    </button>
+                    <a href="<?= base_url('produk/delete/' . $produk['id']) ?>" class="btn btn-danger" onclick="return confirm('Yakin hapus data ini ?')">
+                        Hapus
+                    </a>
                 </td>
             </tr>
         <?php endforeach ?>
@@ -57,4 +62,5 @@
 <!-- End Table with stripped rows --> 
  
  <?= $this->include('produk/modal_add') ?>
+ <?= $this->include('produk/modal_edit') ?>
 <?= $this->endSection() ?>
