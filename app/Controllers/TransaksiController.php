@@ -100,129 +100,141 @@ class TransaksiController extends BaseController
         }
 
     public function checkout()
-        {  
-            $service = new RajaOngkirService();
-            $response = $service->getDestination('semarang');
-            $response2 = $service->getCost('64999','65042','1000','jne');
-            
-            $data = [
-                'items' => $this->cart->contents(),
-                'total' => $this->cart->total(),
-                'response' => $response,
-                'response2' => $response2
-            ];
+    {  
+        $data = [
+            'items'          => $this->cart->contents(),
+            'total'          => $this->cart->total(),
+            'defaultCourier' => 'jne',
+            'weight'         => 1000
+        ];
 
-            return view('v_checkout', $data);
-        }
+        return view('v_checkout', $data);
+    }
 
-    public function destinations()
-        {
-            $search = $this->request->getGet('q'); 
+    public function search_destination()
+    {
+        $keyword = $this->request->getGet('keyword');
 
-            if (empty($search)) {
-                return $this->response->setJSON([
-                    'results' => []
-                ]);
-            }
-
-            $service = new RajaOngkirService();
-            $response = $service->getDestination($search);
-
-            $results = [];
-            $data = $response['data'] ?? [];
-
-            foreach ($data as $item) {
-                $results[] = [
-                    'id'   => $item['id'],
-                    'text' => $item['label']
-                ];
-            }
-
+        if (empty($keyword)) {
             return $this->response->setJSON([
-                'results' => $results
+                'success' => false,
+                'message' => 'Keyword pencarian tidak boleh kosong.',
+                'data'    => []
             ]);
         }
 
-    public function costs()
-        {
-            $origin = '64999';
-            $destination = $this->request->getGet('destination');
-            $weight = '1000';
-            $courier = 'jne'; 
+        try {
+            $service = new RajaOngkirService();
+            $response = $service->getDestination($keyword);
 
+            return $this->response->setJSON([
+                'success' => ($response['meta']['status'] ?? '') === 'success',
+                'message' => $response['meta']['message'] ?? '',
+                'data'    => $response['data'] ?? []
+            ]);
+        } catch (\Exception $e) {
+            return $this->response->setJSON([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'data'    => []
+            ]);
+        }
+    }
+
+    public function shipping_cost()
+    {
+        $origin = '64999'; // Semarang Barat default
+        $destination = $this->request->getPost('destination');
+        $weight = $this->request->getPost('weight') ?: '1000';
+        $courier = $this->request->getPost('courier') ?: 'jne'; 
+
+        if (empty($destination)) {
+            return $this->response->setJSON([
+                'success' => false,
+                'message' => 'Tujuan pengiriman belum dipilih.',
+                'data'    => [],
+                'csrfHash' => csrf_hash()
+            ]);
+        }
+
+        try {
             $service = new RajaOngkirService();
             $response = $service->getCost($origin, $destination, $weight, $courier);
 
-            $results = [];
-            $data = $response['data'] ?? [];
+            return $this->response->setJSON([
+                'success' => ($response['meta']['status'] ?? '') === 'success',
+                'message' => $response['meta']['message'] ?? '',
+                'data'    => $response['data'] ?? [],
+                'csrfHash' => csrf_hash()
+            ]);
+        } catch (\Exception $e) {
+            return $this->response->setJSON([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'data'    => [],
+                'csrfHash' => csrf_hash()
+            ]);
+        }
+    }
 
-            foreach ($data as $item) {
-                $results[] = [
-                    'service'     => $item['service'],
-                    'description' => $item['description'],
-                    'cost'        => $item['cost'],
-                    'etd'         => $item['etd']
-                ];
-            }
+    public function checkout_process()
+    { 
+        $cartItems = $this->cart->contents();
 
-            return $this->response->setJSON($results);
+        if (empty($cartItems)) {
+            return redirect()->to(base_url('keranjang'))->with('failed', 'Keranjang belanja kosong');
         }
 
-    public function buy()
-        { 
-            $cartItems = $this->cart->contents();
+        $db = \Config\Database::connect();
+        $db->transStart(); 
 
-            if (empty($cartItems)) {
-                return redirect()->back();
-            }
-
-            $db = \Config\Database::connect();
-            $db->transStart(); 
-
-            $subtotal = 0;
-            foreach ($cartItems as $item) {
-                $subtotal += $item['qty'] * $item['price'];
-            }
-
-            $ongkir = (int) $this->request->getPost('ongkir');
-
-            $transaction = [
-                'username'    => $this->request->getPost('username'),
-                'alamat'      => $this->request->getPost('alamat'),
-                'ongkir'      => $ongkir,
-                'total_harga' => $subtotal + $ongkir,
-                'status'      => 0, 
-            ];
-
-            // insert transaction
-            if (!$this->transactionModel->insert($transaction)) {
-                $db->transRollback();
-                return redirect()->back()->with('error', 'Gagal membuat transaksi');
-            }
-
-            $transactionId = $this->transactionModel->getInsertID();
-
-            // insert transaction detail
-            foreach ($cartItems as $item) {
-                $this->transactionDetailModel->insert([
-                    'transaction_id' => $transactionId,
-                    'product_id'     => $item['id'],
-                    'jumlah'         => $item['qty'],
-                    'diskon'         => 0,
-                    'subtotal_harga' => $item['qty'] * $item['price'] 
-                ]);
-            }
-
-            $db->transComplete();
-
-            if (!$db->transStatus()) {
-                return redirect()->back()->with('error', 'Gagal membuat transaksi');
-            }
-
-                //hapus session keranjang belanja 
-            $this->cart->destroy();
-            return redirect()->to(base_url());
+        $subtotal = 0;
+        foreach ($cartItems as $item) {
+            $subtotal += $item['qty'] * $item['price'];
         }
+
+        $ongkir = (int) $this->request->getPost('ongkir');
+        $username = session()->get('username');
+
+        $transaction = [
+            'username'    => $username,
+            'alamat'      => $this->request->getPost('alamat'),
+            'ongkir'      => $ongkir,
+            'total_harga' => $subtotal + $ongkir,
+            'status'      => 0, 
+        ];
+
+        // insert transaction
+        if (!$this->transactionModel->insert($transaction)) {
+            $db->transRollback();
+            return redirect()->back()->withInput()->with('failed', 'Gagal membuat transaksi');
+        }
+
+        $transactionId = $this->transactionModel->getInsertID();
+
+        // insert transaction detail
+        foreach ($cartItems as $item) {
+            $this->transactionDetailModel->insert([
+                'transaction_id' => $transactionId,
+                'product_id'     => $item['id'],
+                'jumlah'         => $item['qty'],
+                'diskon'         => 0,
+                'subtotal_harga' => $item['qty'] * $item['price'] 
+            ]);
+        }
+
+        $db->transComplete();
+
+        if (!$db->transStatus()) {
+            return redirect()->back()->withInput()->with('failed', 'Gagal memproses transaksi');
+        }
+
+        // hapus session keranjang belanja 
+        $this->cart->destroy();
+        
+        session()->setFlashdata('success', 'Transaksi berhasil dibuat!');
+        return redirect()->to(base_url());
+    }
 
     public function history()
         {
