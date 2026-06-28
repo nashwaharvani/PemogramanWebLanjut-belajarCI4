@@ -40,4 +40,5 @@ $routes->group('checkout', ['filter' => 'auth'], function ($routes) {
     $routes->post('cost', 'TransaksiController::shipping_cost');
 });
 
+
 $routes->get('checkout', 'TransaksiController::checkout', ['filter' => 'auth']);
