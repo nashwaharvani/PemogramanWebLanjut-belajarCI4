@@ -40,5 +40,7 @@ $routes->group('checkout', ['filter' => 'auth'], function ($routes) {
     $routes->post('cost', 'TransaksiController::shipping_cost');
 });
 
+$routes->get('history', 'TransaksiController::history', ['filter' => 'auth']);
 
 $routes->get('checkout', 'TransaksiController::checkout', ['filter' => 'auth']);
+$routes->resource('api/products', ['controller' => 'Api\ProdukController']);

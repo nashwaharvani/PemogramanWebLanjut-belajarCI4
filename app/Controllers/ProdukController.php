@@ -4,24 +4,55 @@ namespace App\Controllers;
 
 use App\Controllers\BaseController;
 use CodeIgniter\HTTP\ResponseInterface;
+use CodeIgniter\API\ResponseTrait;
 
 use App\Models\ProductModel;
 use Dompdf\Dompdf;
 
 class ProdukController extends BaseController
 {
-    protected $productModel; 
+    use ResponseTrait;
 
-    function __construct()
+    protected $productModel;
+    private $token;
+
+    public function __construct()
     {
-        helper('form');
         $this->productModel = new ProductModel();
+        $this->token = env('MY_API_KEY');
     }
+    private function authenticate()
+{
+    $header = $this->request->getHeaderLine('Authorization');
+
+    if (empty($header)) {
+        return false;
+    }
+
+    if (!preg_match('/Bearer\s+(.*)$/i', $header, $matches)) {
+        return false;
+    }
+
+    return $matches[1] === $this->token;
+}
+
+private function unauthorized()
+{
+    return $this->respond([
+        'status'  => false,
+        'message' => 'Unauthorized'
+    ], 401);
+}
     public function index()
     {
-        return view('produk/index', [
-            'products' => $this->productModel->findAll()
-        ]);
+        // For web UI, return the produk view with product list.
+        $products = $this->productModel->findAll();
+
+        $data = [
+            'products' => $products
+        ];
+
+        return view('produk/index', $data);
     }
 
     public function create()
