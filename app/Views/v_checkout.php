@@ -41,6 +41,11 @@
         </div>
 
         <div class="mb-3">
+            <label for="kupon_code" class="form-label">Kode Kupon</label>
+            <input type="text" class="form-control" id="kupon_code" name="kupon_code" value="<?= esc(old('kupon_code') ?? '') ?>" placeholder="Contoh: HEMAT atau SUPER">
+        </div>
+
+        <div class="mb-3">
             <label for="ongkir" class="form-label">Ongkir</label>
             <input type="number" class="form-control" id="ongkir" name="ongkir" value="<?= old('ongkir') ?>" readonly required>
         </div>
@@ -72,12 +77,32 @@
                     </tr>
                 <?php endforeach; ?>
                 <tr>
-                    <td colspan="3" class="text-end">Subtotal</td>
-                    <td><?= number_to_currency($total, 'IDR') ?></td>
+                    <td colspan="3" class="text-end">Total Harga</td>
+                    <td id="summaryTotalHarga"><?= number_to_currency($summary['total_harga'] ?? $total, 'IDR') ?></td>
                 </tr>
                 <tr>
-                    <td colspan="3" class="text-end">Total</td>
-                    <td id="grandTotal"><?= number_to_currency($total, 'IDR') ?></td>
+                    <td colspan="3" class="text-end">Diskon Kupon</td>
+                    <td id="summaryDiskonKupon"><?= number_to_currency($summary['diskon_kupon'] ?? 0, 'IDR') ?></td>
+                </tr>
+                <tr>
+                    <td colspan="3" class="text-end">Biaya Admin</td>
+                    <td id="summaryBiayaAdmin"><?= number_to_currency($summary['biaya_admin'] ?? 0, 'IDR') ?></td>
+                </tr>
+                <tr>
+                    <td colspan="3" class="text-end">Subtotal</td>
+                    <td id="summarySubtotal"><?= number_to_currency($summary['subtotal'] ?? $total, 'IDR') ?></td>
+                </tr>
+                <tr>
+                    <td colspan="3" class="text-end">Ongkir</td>
+                    <td id="summaryOngkir"><?= number_to_currency($summary['ongkir'] ?? 0, 'IDR') ?></td>
+                </tr>
+                <tr>
+                    <td colspan="3" class="text-end">Grand Total</td>
+                    <td id="grandTotal"><?= number_to_currency($summary['grand_total'] ?? $total, 'IDR') ?></td>
+                </tr>
+                <tr>
+                    <td colspan="3" class="text-end">Cashback</td>
+                    <td id="summaryCashback"><?= number_to_currency($summary['cashback'] ?? 0, 'IDR') ?></td>
                 </tr>
             </tbody>
         </table>
@@ -101,7 +126,14 @@
     const ongkir = document.getElementById('ongkir');
     const courier = document.getElementById('courier');
     const weight = document.getElementById('weight');
+    const kuponCode = document.getElementById('kupon_code');
     const grandTotal = document.getElementById('grandTotal');
+    const summaryTotalHarga = document.getElementById('summaryTotalHarga');
+    const summaryDiskonKupon = document.getElementById('summaryDiskonKupon');
+    const summaryBiayaAdmin = document.getElementById('summaryBiayaAdmin');
+    const summarySubtotal = document.getElementById('summarySubtotal');
+    const summaryOngkir = document.getElementById('summaryOngkir');
+    const summaryCashback = document.getElementById('summaryCashback');
 
     let searchTimer;
 
@@ -150,6 +182,46 @@
         return `${description} ${serviceText} - ${etd} - ${cost}`;
     }
 
+    function hitungBiayaAdmin(totalHarga) {
+        return totalHarga <= 20000000 ? totalHarga * 0.005 : totalHarga * 0.0075;
+    }
+
+    function hitungDiskonKupon(totalHarga, code) {
+        const kupon = (code || '').trim().toUpperCase();
+
+        if (kupon === 'HEMAT') {
+            return totalHarga * 0.15;
+        }
+
+        if (kupon === 'SUPER') {
+            return totalHarga * 0.20;
+        }
+
+        return 0;
+    }
+
+    function hitungCashback(totalHarga) {
+        return totalHarga > 10000000 ? totalHarga * 0.02 : 0;
+    }
+
+    function updateSummary() {
+        const totalHarga = cartTotal;
+        const discount = hitungDiskonKupon(totalHarga, kuponCode.value);
+        const biayaAdmin = hitungBiayaAdmin(totalHarga);
+        const cashback = hitungCashback(totalHarga);
+        const ongkirValue = Number(ongkir.value) || 0;
+        const subtotal = totalHarga - discount + biayaAdmin;
+        const grandTotalValue = subtotal + ongkirValue;
+
+        summaryTotalHarga.textContent = formatCurrency(totalHarga);
+        summaryDiskonKupon.textContent = formatCurrency(discount);
+        summaryBiayaAdmin.textContent = formatCurrency(biayaAdmin);
+        summarySubtotal.textContent = formatCurrency(subtotal);
+        summaryOngkir.textContent = formatCurrency(ongkirValue);
+        grandTotal.textContent = formatCurrency(grandTotalValue);
+        summaryCashback.textContent = formatCurrency(cashback);
+    }
+
     lokasiKeyword.addEventListener('input', function () {
         clearTimeout(searchTimer);
         destination.value = '';
@@ -157,7 +229,7 @@
         layanan.innerHTML = '<option value="">Pilih lokasi pengiriman terlebih dahulu</option>';
         layanan.disabled = true;
         ongkir.value = '';
-        grandTotal.textContent = formatCurrency(cartTotal);
+        updateSummary();
 
         const keyword = this.value.trim();
 
@@ -262,14 +334,18 @@
         lokasiHelp.textContent = 'Lokasi dan layanan ongkir siap digunakan.';
     });
 
+    kuponCode.addEventListener('input', updateSummary);
+
     layanan.addEventListener('change', function () {
         const selected = this.options[this.selectedIndex];
         const value = selected ? Number(selected.value) : 0;
 
         ongkir.value = value;
         layananLabel.value = selected ? selected.dataset.label || selected.textContent : '';
-        grandTotal.textContent = formatCurrency(cartTotal + value);
+        updateSummary();
     });
+
+    updateSummary();
 </script>
 
 <?= $this->endSection() ?>

@@ -9,6 +9,9 @@ use App\Services\RajaOngkirService;
 use App\Models\TransactionModel;
 use App\Models\TransactionDetailModel;
 
+// Load transaksi helper functions
+require_once APPPATH . 'Helpers/Transaksi.php';
+
 class TransaksiController extends BaseController
 {
     protected $cart;
@@ -101,11 +104,30 @@ class TransaksiController extends BaseController
 
     public function checkout()
     {  
+        $totalHarga = (float) $this->cart->total();
+        $kuponCode = trim((string) (old('kupon_code') ?? ''));
+        $ongkir = (float) (old('ongkir') ?? 0);
+
+        $biayaAdmin = hitung_biaya_admin($totalHarga);
+        $diskonKupon = hitung_diskon_kupon($totalHarga, $kuponCode);
+        $cashback = hitung_cashback($totalHarga);
+        $subtotal = $totalHarga - $diskonKupon + $biayaAdmin;
+        $grandTotal = $subtotal + $ongkir;
+
         $data = [
             'items'          => $this->cart->contents(),
-            'total'          => $this->cart->total(),
+            'total'          => $totalHarga,
             'defaultCourier' => 'jne',
-            'weight'         => 1000
+            'weight'         => 1000,
+            'summary'        => [
+                'total_harga'   => $totalHarga,
+                'diskon_kupon'  => $diskonKupon,
+                'biaya_admin'   => $biayaAdmin,
+                'subtotal'      => $subtotal,
+                'ongkir'        => $ongkir,
+                'grand_total'   => $grandTotal,
+                'cashback'      => $cashback,
+            ]
         ];
 
         return view('v_checkout', $data);
@@ -188,20 +210,32 @@ class TransaksiController extends BaseController
         $db = \Config\Database::connect();
         $db->transStart(); 
 
-        $subtotal = 0;
+        $totalHarga = 0;
         foreach ($cartItems as $item) {
-            $subtotal += $item['qty'] * $item['price'];
+            $totalHarga += $item['qty'] * $item['price'];
         }
 
-        $ongkir = (int) $this->request->getPost('ongkir');
+        $ongkir = (float) $this->request->getPost('ongkir');
+        $kuponCode = trim((string) $this->request->getPost('kupon_code'));
         $username = session()->get('username');
 
+        $biayaAdmin = hitung_biaya_admin($totalHarga);
+        $diskonKupon = hitung_diskon_kupon($totalHarga, $kuponCode);
+        $cashback = hitung_cashback($totalHarga);
+        $subtotal = $totalHarga - $diskonKupon + $biayaAdmin;
+        $grandTotal = $subtotal + $ongkir;
+
         $transaction = [
-            'username'    => $username,
-            'alamat'      => $this->request->getPost('alamat'),
-            'ongkir'      => $ongkir,
-            'total_harga' => $subtotal + $ongkir,
-            'status'      => 0, 
+            'username'      => $username,
+            'alamat'        => $this->request->getPost('alamat'),
+            'ongkir'        => $ongkir,
+            'total_harga'   => $totalHarga,
+            'biaya_admin'   => $biayaAdmin,
+            'kupon_code'    => $kuponCode !== '' ? $kuponCode : null,
+            'diskon_kupon'  => $diskonKupon,
+            'cashback'      => $cashback,
+            'grand_total'   => $grandTotal,
+            'status'        => 0, 
         ];
 
         // insert transaction
