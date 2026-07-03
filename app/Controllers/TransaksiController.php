@@ -237,20 +237,20 @@ class TransaksiController extends BaseController
     }
 
     public function history()
-        {
-            $username = session()->get('username'); 
-        
-            $transactions = $this->transactionModel->where('username', $username)->findAll();
-            $transactionIds = array_column($transactions, 'id');
+{
+    $username = session()->get('username'); 
+ 
+    $transactions = $this->transactionModel->where('username', $username)->findAll();
+    $transactionIds = array_column($transactions, 'id');
 
-            $products = $this->transactionDetailModel->getProductsByTransactionIds($transactionIds);
+    $products = $this->transactionDetailModel->getProductsByTransactionIds($transactionIds);
 
-            $data = [
-                'username'      => $username,
-                'transactions'  => $transactions,
-                'products'      => $products
-            ]; 
+    $data = [
+        'username'      => $username,
+        'transactions'  => $transactions,
+        'products'      => $products
+    ]; 
 
-            return view('v_history', $data);
-        }
+    return view('v_history', $data);
+}
 }
