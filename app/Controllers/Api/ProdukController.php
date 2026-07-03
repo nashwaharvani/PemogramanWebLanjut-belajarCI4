@@ -2,86 +2,127 @@
 
 namespace App\Controllers\Api;
 
-use CodeIgniter\HTTP\ResponseInterface;
+use App\Models\ProductModel;
 use CodeIgniter\RESTful\ResourceController;
 
 class ProdukController extends ResourceController
 {
-    /**
-     * Return an array of resource objects, themselves in array format.
-     *
-     * @return ResponseInterface
-     */
+    protected $modelName = ProductModel::class;
+    protected $format    = 'json';
+    private $token;
+
+    public function __construct()
+    {
+        $this->token = env('MY_API_KEY');
+    }
+
+    private function authenticate()
+    {
+        $header = $this->request->getHeaderLine('Authorization');
+
+        if (empty($header)) {
+            return false;
+        }
+
+        if (!preg_match('/Bearer\s+(.*)$/i', $header, $matches)) {
+            return false;
+        }
+
+        return $matches[1] === $this->token;
+    }
+
+    private function unauthorized()
+    {
+        return $this->failUnauthorized('Unauthorized');
+    }
+
     public function index()
     {
-        //
+        if (!$this->authenticate()) {
+            return $this->unauthorized();
+        }
+
+        return $this->respond($this->model->findAll());
     }
 
-    /**
-     * Return the properties of a resource object.
-     *
-     * @param int|string|null $id
-     *
-     * @return ResponseInterface
-     */
     public function show($id = null)
     {
-        //
+        if (!$this->authenticate()) {
+            return $this->unauthorized();
+        }
+
+        $product = $this->model->find($id);
+
+        if (!$product) {
+            return $this->failNotFound('Produk tidak ditemukan');
+        }
+
+        return $this->respond($product);
     }
 
-    /**
-     * Return a new resource object, with default properties.
-     *
-     * @return ResponseInterface
-     */
-    public function new()
-    {
-        //
-    }
-
-    /**
-     * Create a new resource object, from "posted" parameters.
-     *
-     * @return ResponseInterface
-     */
     public function create()
     {
-        //
+        if (!$this->authenticate()) {
+            return $this->unauthorized();
+        }
+
+        $data = $this->request->getJSON(true);
+
+        if (empty($data)) {
+            return $this->failValidationErrors('Data JSON tidak valid');
+        }
+
+        $insertId = $this->model->insert($data);
+
+        if ($insertId === false) {
+            return $this->fail($this->model->errors());
+        }
+
+        return $this->respondCreated([
+            'message' => 'Produk berhasil ditambahkan',
+            'id'      => $insertId,
+        ]);
     }
 
-    /**
-     * Return the editable properties of a resource object.
-     *
-     * @param int|string|null $id
-     *
-     * @return ResponseInterface
-     */
-    public function edit($id = null)
-    {
-        //
-    }
-
-    /**
-     * Add or update a model resource, from "posted" properties.
-     *
-     * @param int|string|null $id
-     *
-     * @return ResponseInterface
-     */
     public function update($id = null)
     {
-        //
+        if (!$this->authenticate()) {
+            return $this->unauthorized();
+        }
+
+        if (!$this->model->find($id)) {
+            return $this->failNotFound('Produk tidak ditemukan');
+        }
+
+        $data = $this->request->getJSON(true);
+
+        if (empty($data)) {
+            return $this->failValidationErrors('Data JSON tidak valid');
+        }
+
+        if ($this->model->update($id, $data) === false) {
+            return $this->fail($this->model->errors());
+        }
+
+        return $this->respond([
+            'message' => 'Produk berhasil diperbarui',
+        ]);
     }
 
-    /**
-     * Delete the designated resource object from the model.
-     *
-     * @param int|string|null $id
-     *
-     * @return ResponseInterface
-     */
     public function delete($id = null)
     {
-        //
+        if (!$this->authenticate()) {
+            return $this->unauthorized();
+        }
+
+        if (!$this->model->find($id)) {
+            return $this->failNotFound('Produk tidak ditemukan');
+        }
+
+        $this->model->delete($id);
+
+        return $this->respondDeleted([
+            'message' => 'Produk berhasil dihapus',
+        ]);
     }
 }

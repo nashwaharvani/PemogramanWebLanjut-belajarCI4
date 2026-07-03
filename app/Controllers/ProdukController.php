@@ -56,70 +56,69 @@ private function unauthorized()
     }
 
     public function create()
-    {
-        $dataFoto = $this->request->getFile('foto');
-
-        $dataForm = [
-            'nama' => $this->request->getPost('nama'),
-            'harga' => $this->request->getPost('harga'),
-            'jumlah' => $this->request->getPost('jumlah') 
-        ];
-
-        if ($dataFoto->isValid()) {
-            $fileName = $dataFoto->getRandomName(); 
-            $dataFoto->move('img/', $fileName);
-            
-            $dataForm['foto'] = $fileName;
-        }
-
-        $this->productModel->insert($dataForm);
-
-        return redirect()->to(site_url('produk'))->with('success', 'Data Berhasil Ditambah');
-    } 
-
-    public function edit($id)
-    {
-        $produk = $this->productModel->find($id);
-
-        if (!$produk) {
-            return redirect()->to(site_url('produk'))->with('failed', 'Data produk tidak ditemukan');
-        }
-
-        $dataForm = [
-            'nama' => $this->request->getPost('nama'),
-            'harga' => $this->request->getPost('harga'),
-            'jumlah' => $this->request->getPost('jumlah')
-        ];
-
-        if ($this->request->getPost('check')) {
-            $dataFoto = $this->request->getFile('foto');
-
-            if ($dataFoto->isValid()) {
-                $fileName = $dataFoto->getRandomName();
-                $dataFoto->move('img/', $fileName);
-
-                $dataForm['foto'] = $fileName;
-            }
-        }
-
-        $this->productModel->update($id, $dataForm);
-
-        return redirect()->to(site_url('produk'))->with('success', 'Data Berhasil Diubah');
+{
+    if (!$this->authenticate()) {
+        return $this->unauthorized();
     }
 
-    public function delete($id)
-    {
-        $produk = $this->productModel->find($id);
+    $data = $this->request->getJSON(true);
 
-        if (!$produk) {
-            return redirect()->to(site_url('produk'))->with('failed', 'Data produk tidak ditemukan');
-        }
+    $this->model->insert($data);
 
-        $this->productModel->delete($id);
-
-        return redirect()->to(site_url('produk'))->with('success', 'Data Berhasil Dihapus');
+    return $this->respondCreated([
+        'message' => 'Produk berhasil ditambahkan'
+    ]);
+}
+    public function show($id = null)
+{
+    if (!$this->authenticate()) {
+        return $this->unauthorized();
     }
 
+    $product = $this->model->find($id);
+
+    if (!$product) {
+        return $this->failNotFound('Produk tidak ditemukan');
+    }
+
+    return $this->respond($product);
+} 
+
+    public function update($id = null)
+{
+    if (!$this->authenticate()) {
+        return $this->unauthorized();
+    }
+
+    if (!$this->model->find($id)) {
+        return $this->failNotFound('Produk tidak ditemukan');
+    }
+
+    $data = $this->request->getJSON(true);
+
+    $this->model->update($id, $data);
+
+    return $this->respond([
+        'message' => 'Produk berhasil diperbarui'
+    ]);
+}
+
+    public function delete($id = null)
+{
+    if (!$this->authenticate()) {
+        return $this->unauthorized();
+    }
+
+    if (!$this->model->find($id)) {
+        return $this->failNotFound('Produk tidak ditemukan');
+    }
+
+    $this->model->delete($id);
+
+    return $this->respondDeleted([
+        'message' => 'Produk berhasil dihapus'
+    ]);
+}
         public function download()
     {
         // Ambil data produk dari database
