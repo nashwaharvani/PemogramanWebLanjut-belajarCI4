@@ -38,31 +38,42 @@ class ProdukController extends ResourceController
 
     public function index()
     {
-        if (!$this->authenticate()) {
+        if (! $this->authenticate()) {
             return $this->unauthorized();
         }
 
-        return $this->respond($this->model->findAll());
+        $products = $this->model->findAll();
+
+        return $this->respond($products);
     }
 
     public function show($id = null)
     {
-        if (!$this->authenticate()) {
+        if (! $this->authenticate()) {
             return $this->unauthorized();
+        }
+
+        if (empty($id)) {
+            return $this->failValidationErrors('ID produk diperlukan');
         }
 
         $product = $this->model->find($id);
 
-        if (!$product) {
+        if (! $product) {
             return $this->failNotFound('Produk tidak ditemukan');
         }
 
         return $this->respond($product);
     }
 
+    public function new()
+    {
+        return $this->failNotFound('Endpoint tidak tersedia');
+    }
+
     public function create()
     {
-        if (!$this->authenticate()) {
+        if (! $this->authenticate()) {
             return $this->unauthorized();
         }
 
@@ -84,13 +95,24 @@ class ProdukController extends ResourceController
         ]);
     }
 
+    public function edit($id = null)
+    {
+        return $this->failNotFound('Endpoint tidak tersedia');
+    }
+
     public function update($id = null)
     {
-        if (!$this->authenticate()) {
+        if (! $this->authenticate()) {
             return $this->unauthorized();
         }
 
-        if (!$this->model->find($id)) {
+        if (empty($id)) {
+            return $this->failValidationErrors('ID produk diperlukan');
+        }
+
+        $product = $this->model->find($id);
+
+        if (! $product) {
             return $this->failNotFound('Produk tidak ditemukan');
         }
 
@@ -111,11 +133,15 @@ class ProdukController extends ResourceController
 
     public function delete($id = null)
     {
-        if (!$this->authenticate()) {
+        if (! $this->authenticate()) {
             return $this->unauthorized();
         }
 
-        if (!$this->model->find($id)) {
+        if (empty($id)) {
+            return $this->failValidationErrors('ID produk diperlukan');
+        }
+
+        if (! $this->model->find($id)) {
             return $this->failNotFound('Produk tidak ditemukan');
         }
 

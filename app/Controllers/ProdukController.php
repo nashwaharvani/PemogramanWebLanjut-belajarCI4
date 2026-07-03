@@ -3,150 +3,118 @@
 namespace App\Controllers;
 
 use App\Controllers\BaseController;
-use CodeIgniter\HTTP\ResponseInterface;
-use CodeIgniter\API\ResponseTrait;
-
 use App\Models\ProductModel;
 use Dompdf\Dompdf;
 
 class ProdukController extends BaseController
 {
-    use ResponseTrait;
-
     protected $productModel;
-    private $token;
 
     public function __construct()
     {
         $this->productModel = new ProductModel();
-        $this->token = env('MY_API_KEY');
-    }
-    private function authenticate()
-{
-    $header = $this->request->getHeaderLine('Authorization');
-
-    if (empty($header)) {
-        return false;
     }
 
-    if (!preg_match('/Bearer\s+(.*)$/i', $header, $matches)) {
-        return false;
-    }
-
-    return $matches[1] === $this->token;
-}
-
-private function unauthorized()
-{
-    return $this->respond([
-        'status'  => false,
-        'message' => 'Unauthorized'
-    ], 401);
-}
     public function index()
     {
-        // For web UI, return the produk view with product list.
         $products = $this->productModel->findAll();
 
-        $data = [
-            'products' => $products
-        ];
-
-        return view('produk/index', $data);
+        return view('produk/index', [
+            'products' => $products,
+        ]);
     }
 
     public function create()
-{
-    if (!$this->authenticate()) {
-        return $this->unauthorized();
+    {
+        if ($this->request->getMethod() !== 'post') {
+            return redirect()->to(site_url('produk'));
+        }
+
+        $data = $this->request->getPost(['nama', 'harga', 'jumlah']);
+        $file = $this->request->getFile('foto');
+
+        if ($file && $file->isValid() && ! $file->hasMoved()) {
+            $newName = $file->getRandomName();
+            $file->move(FCPATH . 'img', $newName);
+            $data['foto'] = $newName;
+        }
+
+        $this->productModel->insert($data);
+
+        session()->setFlashdata('success', 'Produk berhasil ditambahkan');
+        return redirect()->to(site_url('produk'));
     }
 
-    $data = $this->request->getJSON(true);
+    public function edit($id = null)
+    {
+        if ($this->request->getMethod() !== 'post') {
+            return redirect()->to(site_url('produk'));
+        }
 
-    $this->model->insert($data);
+        $product = $this->productModel->find($id);
 
-    return $this->respondCreated([
-        'message' => 'Produk berhasil ditambahkan'
-    ]);
-}
-    public function show($id = null)
-{
-    if (!$this->authenticate()) {
-        return $this->unauthorized();
+        if (! $product) {
+            session()->setFlashdata('failed', 'Produk tidak ditemukan');
+            return redirect()->to(site_url('produk'));
+        }
+
+        $data = $this->request->getPost(['nama', 'harga', 'jumlah']);
+        $photoCheck = $this->request->getPost('check');
+        $file = $this->request->getFile('foto');
+
+        if ($photoCheck && $file && $file->isValid() && ! $file->hasMoved()) {
+            if (! empty($product['foto']) && file_exists(FCPATH . 'img/' . $product['foto'])) {
+                @unlink(FCPATH . 'img/' . $product['foto']);
+            }
+
+            $newName = $file->getRandomName();
+            $file->move(FCPATH . 'img', $newName);
+            $data['foto'] = $newName;
+        } else {
+            $data['foto'] = $product['foto'];
+        }
+
+        $this->productModel->update($id, $data);
+
+        session()->setFlashdata('success', 'Produk berhasil diubah');
+        return redirect()->to(site_url('produk'));
     }
-
-    $product = $this->model->find($id);
-
-    if (!$product) {
-        return $this->failNotFound('Produk tidak ditemukan');
-    }
-
-    return $this->respond($product);
-} 
-
-    public function update($id = null)
-{
-    if (!$this->authenticate()) {
-        return $this->unauthorized();
-    }
-
-    if (!$this->model->find($id)) {
-        return $this->failNotFound('Produk tidak ditemukan');
-    }
-
-    $data = $this->request->getJSON(true);
-
-    $this->model->update($id, $data);
-
-    return $this->respond([
-        'message' => 'Produk berhasil diperbarui'
-    ]);
-}
 
     public function delete($id = null)
-{
-    if (!$this->authenticate()) {
-        return $this->unauthorized();
-    }
-
-    if (!$this->model->find($id)) {
-        return $this->failNotFound('Produk tidak ditemukan');
-    }
-
-    $this->model->delete($id);
-
-    return $this->respondDeleted([
-        'message' => 'Produk berhasil dihapus'
-    ]);
-}
-        public function download()
     {
-        // Ambil data produk dari database
+        $product = $this->productModel->find($id);
+
+        if (! $product) {
+            session()->setFlashdata('failed', 'Produk tidak ditemukan');
+            return redirect()->to(site_url('produk'));
+        }
+
+        if (! empty($product['foto']) && file_exists(FCPATH . 'img/' . $product['foto'])) {
+            @unlink(FCPATH . 'img/' . $product['foto']);
+        }
+
+        $this->productModel->delete($id);
+
+        session()->setFlashdata('success', 'Produk berhasil dihapus');
+        return redirect()->to(site_url('produk'));
+    }
+
+    public function download()
+    {
         $products = $this->productModel->findAll();
 
-        // Render view menjadi HTML
         $html = view('produk/download_pdf', [
-            'products' => $products
+            'products' => $products,
         ]);
 
-        // Nama file PDF
         $filename = date('Y-m-d-H-i-s') . '-produk.pdf';
 
-        // Inisialisasi Dompdf
         $dompdf = new Dompdf();
-
-        // Load HTML ke Dompdf
         $dompdf->loadHtml($html);
-
-        // Setting ukuran kertas dan orientasi
         $dompdf->setPaper('A4', 'portrait');
-
-        // Generate PDF
         $dompdf->render();
-
-        // Download / tampilkan PDF
         $dompdf->stream($filename, [
-            'Attachment' => true
+            'Attachment' => true,
         ]);
     }
 }

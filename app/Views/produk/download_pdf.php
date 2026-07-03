@@ -11,14 +11,14 @@
 
     <?php foreach ($products as $index => $produk) : ?>
     <?php
-		    $path = FCPATH . 'img/' . $produk['foto'];
+        $path = FCPATH . 'img/' . $produk['foto'];
         $base64 = '';
-        
-        if (file_exists($path)) {
-	        $type = pathinfo($path, PATHINFO_EXTENSION);
-	        $data = file_get_contents($path);
-	        $base64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
-				}
+
+        if (! empty($produk['foto']) && file_exists($path) && is_file($path)) {
+            $type = pathinfo($path, PATHINFO_EXTENSION);
+            $data = file_get_contents($path);
+            $base64 = 'data:image/' . $type . ';base64,' . base64_encode($data);
+        }
     ?>
         <tr>
             <td align="center"><?= $index + 1 ?></td>

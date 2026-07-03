@@ -40,7 +40,7 @@
                 <td><?php echo $produk['harga'] ?></td>
                 <td><?php echo $produk['jumlah'] ?></td>
                 <td>
-                    <?php if ($produk['foto'] != '' and file_exists("img/" . $produk['foto'] . "")) : ?>
+                    <?php if ($produk['foto'] != '' and file_exists(FCPATH . 'img/' . $produk['foto'])) : ?>
                         <img src="<?php echo base_url() . "img/" . $produk['foto'] ?>" width="100">
                     <?php endif; ?>
                 </td>
